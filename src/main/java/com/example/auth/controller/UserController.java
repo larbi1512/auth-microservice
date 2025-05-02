@@ -1,0 +1,79 @@
+package com.example.auth.controller;
+import com.example.auth.entity.User;
+import com.example.auth.entity.UserDepartment;
+import com.example.auth.repository.UserDepartmentRepository;
+import com.example.auth.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/users")
+public class UserController {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserDepartmentRepository userDepartmentRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @PostMapping
+    public ResponseEntity<?> createUser(@RequestBody User user) {
+        if (userRepository.findByUsername(user.getUsername()) != null) {
+            return ResponseEntity.badRequest().body("Username already exists");
+        }
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        userRepository.save(user);
+        return ResponseEntity.ok("User created");
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+        User user = userRepository.findById(id).orElse(null);
+        if (user == null) return ResponseEntity.notFound().build();
+        user.setUsername(updatedUser.getUsername());
+        if (updatedUser.getPassword() != null) {
+            user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+        }
+        user.setRole(updatedUser.getRole());
+        userRepository.save(user);
+        return ResponseEntity.ok("User updated");
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        userRepository.deleteById(id);
+        return ResponseEntity.ok("User deleted");
+    }
+
+    @GetMapping("/{userId}/departments")
+    public List<UserDepartment> getUserDepartments(@PathVariable Long userId) {
+        return userDepartmentRepository.findByUserId(userId);
+    }
+
+    @PostMapping("/{userId}/departments")
+    public ResponseEntity<?> assignDepartment(@PathVariable Long userId, @RequestBody DepartmentAssignmentRequest request) {
+        UserDepartment ud = new UserDepartment();
+        ud.setUserId(userId);
+        ud.setDepartmentId(request.getDepartmentId());
+        userDepartmentRepository.save(ud);
+        return ResponseEntity.ok("Department assigned");
+    }
+
+    @DeleteMapping("/{userId}/departments/{departmentId}")
+    public ResponseEntity<?> unassignDepartment(@PathVariable Long userId, @PathVariable Long departmentId) {
+        userDepartmentRepository.deleteByUserIdAndDepartmentId(userId, departmentId);
+        return ResponseEntity.ok("Department unassigned");
+    }
+}
+
+class DepartmentAssignmentRequest {
+    private Long departmentId;
+    public Long getDepartmentId() { return departmentId; }
+    public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+}
