@@ -5,6 +5,7 @@ import com.example.auth.repository.UserDepartmentRepository;
 import com.example.auth.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,7 @@ public class UserController {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> createUser(@RequestBody User user) {
         if (userRepository.findByUsername(user.getUsername()) != null) {
             return ResponseEntity.badRequest().body("Username already exists");
@@ -33,6 +35,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
         User user = userRepository.findById(id).orElse(null);
         if (user == null) return ResponseEntity.notFound().build();
@@ -46,17 +49,20 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         userRepository.deleteById(id);
         return ResponseEntity.ok("User deleted");
     }
 
     @GetMapping("/{userId}/departments")
+
     public List<UserDepartment> getUserDepartments(@PathVariable Long userId) {
         return userDepartmentRepository.findByUserId(userId);
     }
 
     @PostMapping("/{userId}/departments")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> assignDepartment(@PathVariable Long userId, @RequestBody DepartmentAssignmentRequest request) {
         UserDepartment ud = new UserDepartment();
         ud.setUserId(userId);
@@ -66,6 +72,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}/departments/{departmentId}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> unassignDepartment(@PathVariable Long userId, @PathVariable Long departmentId) {
         userDepartmentRepository.deleteByUserIdAndDepartmentId(userId, departmentId);
         return ResponseEntity.ok("Department unassigned");
