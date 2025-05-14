@@ -16,8 +16,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+
+@CrossOrigin(origins = "http://localhost:5173", maxAge = 3600)
 @RestController
 @RequestMapping("/auth")
+
 public class AuthController {
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -36,6 +39,9 @@ public class AuthController {
         if (userRepository.findByUsername(user.getUsername()) != null) {
             return ResponseEntity.badRequest().body("Username already exists");
         }
+        if (userRepository.findByEmail(user.getEmail()) != null) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
         String encodedPassword = passwordEncoder.encode(user.getPassword());
         System.out.println("Registering user: " + user.getUsername() + ", Encoded password: " + encodedPassword);
         user.setPassword(encodedPassword);
@@ -50,62 +56,63 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         System.out.println(
-                "Login attempt: username=" + loginRequest.getUsername() + ", password=" + loginRequest.getPassword());
+                "Login attempt: username/email=" + loginRequest.getUsername() + ", password="
+                        + loginRequest.getPassword());
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-            User user = userRepository.findByUsername(loginRequest.getUsername());
+            User user = userRepository.findByUsernameOrEmail(loginRequest.getUsername(), loginRequest.getUsername());
             if (user == null) {
                 return ResponseEntity.badRequest().body("User not found");
             }
             UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                     user.getUsername(), user.getPassword(),
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole())));
-            String jwt = jwtUtil.generateToken(userDetails, user.getId());
+            String jwt = jwtUtil.generateToken(userDetails, user.getId(), user.getEmail());
             return ResponseEntity.ok(new JwtResponse(jwt));
         } catch (BadCredentialsException e) {
-            return ResponseEntity.badRequest().body("Invalid username or password");
+            return ResponseEntity.badRequest().body("Invalid username/email or password");
         } catch (Exception e) {
             System.out.println("Authentication failed: " + e.getMessage());
             return ResponseEntity.badRequest().body("Authentication error: " + e.getMessage());
         }
     }
-}
 
-class LoginRequest {
-    private String username;
-    private String password;
+    public static class LoginRequest {
+        private String username;
+        private String password;
 
-    // Getters and Setters
-    public String getUsername() {
-        return username;
+        // Getters and Setters
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
     }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    class JwtResponse {
+        private String token;
 
-    public String getPassword() {
-        return password;
-    }
+        public JwtResponse(String token) {
+            this.token = token;
+        }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
-}
+        public String getToken() {
+            return token;
+        }
 
-class JwtResponse {
-    private String token;
-
-    public JwtResponse(String token) {
-        this.token = token;
-    }
-
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
+        public void setToken(String token) {
+            this.token = token;
+        }
     }
 }
