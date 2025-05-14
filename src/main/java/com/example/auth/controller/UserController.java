@@ -1,4 +1,5 @@
 package com.example.auth.controller;
+
 import com.example.auth.entity.User;
 import com.example.auth.entity.UserDepartment;
 import com.example.auth.repository.UserDepartmentRepository;
@@ -11,8 +12,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@CrossOrigin(origins = "http://localhost:5173", maxAge = 3600)
 @RestController
 @RequestMapping("/users")
+
 public class UserController {
     @Autowired
     private UserRepository userRepository;
@@ -29,6 +32,9 @@ public class UserController {
         if (userRepository.findByUsername(user.getUsername()) != null) {
             return ResponseEntity.badRequest().body("Username already exists");
         }
+        if (userRepository.findByEmail(user.getEmail()) != null) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
         return ResponseEntity.ok("User created");
@@ -38,8 +44,18 @@ public class UserController {
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
         User user = userRepository.findById(id).orElse(null);
-        if (user == null) return ResponseEntity.notFound().build();
+        if (user == null)
+            return ResponseEntity.notFound().build();
+        if (!user.getUsername().equals(updatedUser.getUsername()) &&
+                userRepository.findByUsername(updatedUser.getUsername()) != null) {
+            return ResponseEntity.badRequest().body("Username already exists");
+        }
+        if (!user.getEmail().equals(updatedUser.getEmail()) &&
+                userRepository.findByEmail(updatedUser.getEmail()) != null) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
         user.setUsername(updatedUser.getUsername());
+        user.setEmail(updatedUser.getEmail());
         if (updatedUser.getPassword() != null) {
             user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
         }
@@ -56,14 +72,14 @@ public class UserController {
     }
 
     @GetMapping("/{userId}/departments")
-
     public List<UserDepartment> getUserDepartments(@PathVariable Long userId) {
         return userDepartmentRepository.findByUserId(userId);
     }
 
     @PostMapping("/{userId}/departments")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<?> assignDepartment(@PathVariable Long userId, @RequestBody DepartmentAssignmentRequest request) {
+    public ResponseEntity<?> assignDepartment(@PathVariable Long userId,
+            @RequestBody DepartmentAssignmentRequest request) {
         UserDepartment ud = new UserDepartment();
         ud.setUserId(userId);
         ud.setDepartmentId(request.getDepartmentId());
@@ -81,6 +97,12 @@ public class UserController {
 
 class DepartmentAssignmentRequest {
     private Long departmentId;
-    public Long getDepartmentId() { return departmentId; }
-    public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+
+    public Long getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(Long departmentId) {
+        this.departmentId = departmentId;
+    }
 }

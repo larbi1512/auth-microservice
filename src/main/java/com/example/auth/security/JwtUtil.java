@@ -18,11 +18,12 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private int expiration;
 
-    public String generateToken(UserDetails userDetails, Long userId) {
+    public String generateToken(UserDetails userDetails, Long userId, String email) {
         Map<String, Object> claims = new HashMap<>();
-        String role = userDetails.getAuthorities().iterator().next().getAuthority(); // e.g., "ADMIN"
-        claims.put("role", role); // Store as "ADMIN"
+        String role = userDetails.getAuthorities().iterator().next().getAuthority();
+        claims.put("role", role);
         claims.put("userId", userId);
+        claims.put("email", email);
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(userDetails.getUsername())
@@ -41,6 +42,10 @@ public class JwtUtil {
                 Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody().get("userId").toString());
     }
 
+    public String getEmailFromToken(String token) {
+        return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody().get("email").toString();
+    }
+
     public boolean validateToken(String token, UserDetails userDetails) {
         String username = getUsernameFromToken(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
@@ -50,5 +55,4 @@ public class JwtUtil {
         Date expiration = Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody().getExpiration();
         return expiration.before(new Date());
     }
-
 }
